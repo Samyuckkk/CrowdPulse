@@ -1,0 +1,2 @@
+dbpassword = WPqi4iZMyIEGhKjw
+username = samyakoholkar_db_user
