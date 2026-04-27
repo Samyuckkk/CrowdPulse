@@ -165,10 +165,53 @@ async function getLogs(req, res) {
     res.status(200).json({ message: "Logs fetched!", alerts })
 }
 
+async function createVolunteerSosAlert(req, res){
+    try {
+        const { zoneId } = req.params
+
+        if(!req.volunteer?.eventId){
+            return res.status(400).json({
+                message: "Volunteer is not assigned to any event!"
+            })
+        }
+
+        const zone = await zoneModel.findOne({
+            _id: zoneId,
+            eventId: req.volunteer.eventId
+        })
+
+        if(!zone){
+            return res.status(404).json({
+                message: "Zone not found!"
+            })
+        }
+
+        const alert = await alertModel.create({
+            eventId: req.volunteer.eventId,
+            zoneId: zone._id,
+            severity: "HIGH",
+            action: `Volunteer SOS triggered in ${zone.name}. Immediate response required.`
+        })
+
+        await alert.populate('zoneId', 'name code')
+
+        res.status(201).json({
+            message: "SOS alert created successfully!",
+            alert
+        })
+
+    } catch (err) {
+        res.status(500).json({
+            message: err.message
+        })
+    }
+}
+
 module.exports = {
     generateAlert,
     assignAlert,
     resolveAlert,
     getActiveAlerts,
-    getLogs
+    getLogs,
+    createVolunteerSosAlert
 }

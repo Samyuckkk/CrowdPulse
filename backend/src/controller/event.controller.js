@@ -71,9 +71,23 @@ async function getVolunteers(req, res){
     res.status(200).json({ message: "Volunteers fetched!", volunteers })
 }
 
+async function getVolunteerZones(req, res){
+    const zoneModel = require('../models/zone.model')
+
+    if(!req.volunteer?.eventId){
+        return res.status(400).json({
+            message: "Volunteer is not assigned to any event!"
+        })
+    }
+
+    const zones = await zoneModel.find({ eventId: req.volunteer.eventId })
+    res.status(200).json({ message: "Zones fetched!", zones, eventId: req.volunteer.eventId })
+}
+
 module.exports = {
     createEvent,
     getEvents,
     getZones,
-    getVolunteers
+    getVolunteers,
+    getVolunteerZones
 }

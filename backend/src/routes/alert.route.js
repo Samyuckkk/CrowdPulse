@@ -10,6 +10,7 @@ const upload = multer({
 })
 
 router.post('/generate', authMiddleware.authAdminMiddleware, upload.single("video"), alertController.generateAlert)
+router.post('/volunteer/sos/:zoneId', authMiddleware.authVolunteerMiddleware, alertController.createVolunteerSosAlert)
 router.patch('/:alertId/assign', authMiddleware.authAdminMiddleware, alertController.assignAlert)
 router.patch('/:alertId/resolve', alertController.resolveAlert)
 router.get('/:eventId/active', authMiddleware.authAdminMiddleware, alertController.getActiveAlerts)
