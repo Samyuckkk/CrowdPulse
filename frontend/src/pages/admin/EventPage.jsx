@@ -58,6 +58,94 @@ const Empty = ({ icon, label, sub }) => (
   </div>
 );
 
+const VolunteerAssignModal = ({
+  alert,
+  volunteers,
+  loading,
+  submitting,
+  error,
+  onClose,
+  onAssign,
+}) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
+    <div className="w-full max-w-md bg-[#16161d] border border-white/10 rounded-2xl p-6 shadow-2xl">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-white font-semibold text-lg">Assign Volunteer</h2>
+          <p className="text-gray-500 text-xs mt-0.5 font-mono">
+            {alert.zoneId?.code} - {alert.zoneId?.name}
+          </p>
+        </div>
+        <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      {error && <ErrorMsg msg={error} />}
+
+      {loading ? (
+        <Spinner />
+      ) : volunteers.length === 0 ? (
+        <Empty
+          icon="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+          label="No volunteers available"
+          sub="Register volunteers for this event before assigning alerts"
+        />
+      ) : (
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+          {volunteers.map((volunteer) => {
+            const isAssigned = alert.assignedVolunteerId?._id === volunteer._id;
+            return (
+              <button
+                key={volunteer._id}
+                type="button"
+                onClick={() => onAssign(volunteer._id)}
+                disabled={submitting || isAssigned}
+                className={`w-full text-left p-4 rounded-xl border transition-all duration-200 ${
+                  isAssigned
+                    ? "border-violet-500/40 bg-violet-500/10 cursor-default"
+                    : "border-white/10 bg-white/5 hover:border-violet-500/30 hover:bg-white/10"
+                } disabled:opacity-60 disabled:cursor-not-allowed`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-white font-medium truncate">{volunteer.fullName}</p>
+                    <p className="text-gray-500 text-xs truncate">{volunteer.email}</p>
+                  </div>
+                  <span className="text-xs text-gray-400">
+                    {isAssigned ? "Assigned" : submitting ? "Assigning..." : "Assign"}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+const VolunteerAssignmentBadge = ({ volunteerName }) => {
+  if (!volunteerName) {
+    return (
+      <div className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-gray-400">
+        <span className="h-2 w-2 rounded-full bg-gray-500" />
+        No volunteer assigned
+      </div>
+    );
+  }
+
+  return (
+    <div className="inline-flex items-center gap-2 rounded-lg border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs text-violet-200">
+      <span className="h-2 w-2 rounded-full bg-violet-400" />
+      <span className="text-violet-100">Assigned volunteer:</span>
+      <span className="font-semibold text-white">{volunteerName}</span>
+    </div>
+  );
+};
+
 // ── Generate Alert Modal ────────────────────────────────────────────────────
 const GenerateAlertModal = ({ zone, eventId, onClose, onSuccess }) => {
   const [videoFile, setVideoFile] = useState(null);
@@ -281,10 +369,18 @@ const ZonesTab = ({ eventId, navigate }) => {
 // ── Alerts Tab ───────────────────────────────────────────────────────────────
 const AlertsTab = ({ eventId, navigate }) => {
   const [alerts, setAlerts] = useState([]);
+  const [volunteers, setVolunteers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [assignError, setAssignError] = useState("");
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const [volunteersLoading, setVolunteersLoading] = useState(false);
+  const [assigningVolunteerId, setAssigningVolunteerId] = useState("");
+  const [resolvingAlertId, setResolvingAlertId] = useState("");
 
-  useEffect(() => {
+  const fetchAlerts = () => {
+    setLoading(true);
+    setError("");
     axios.get(`http://localhost:3000/alert/${eventId}/active`, { withCredentials: true })
       .then((res) => setAlerts(res.data.alerts))
       .catch((err) => {
@@ -292,7 +388,82 @@ const AlertsTab = ({ eventId, navigate }) => {
         setError(err.response?.data?.message || "Failed to load alerts.");
       })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchAlerts();
   }, [eventId, navigate]);
+
+  const openAssignModal = async (alert) => {
+    setSelectedAlert(alert);
+    setAssignError("");
+    setVolunteersLoading(true);
+
+    try {
+      const res = await axios.get(`http://localhost:3000/event/${eventId}/volunteers`, { withCredentials: true });
+      setVolunteers(res.data.volunteers);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        navigate("/");
+        return;
+      }
+      setAssignError(err.response?.data?.message || "Failed to load volunteers.");
+    } finally {
+      setVolunteersLoading(false);
+    }
+  };
+
+  const handleAssignVolunteer = async (volunteerId) => {
+    if (!selectedAlert) return;
+
+    setAssignError("");
+    setAssigningVolunteerId(volunteerId);
+
+    try {
+      const res = await axios.patch(
+        `http://localhost:3000/alert/${selectedAlert._id}/assign`,
+        { volunteerId },
+        { withCredentials: true }
+      );
+
+      setAlerts((current) =>
+        current.map((alert) =>
+          alert._id === selectedAlert._id ? { ...alert, ...res.data.alert } : alert
+        )
+      );
+      setSelectedAlert((current) =>
+        current ? { ...current, ...res.data.alert } : current
+      );
+    } catch (err) {
+      if (err.response?.status === 401) {
+        navigate("/");
+        return;
+      }
+      setAssignError(err.response?.data?.message || "Failed to assign volunteer.");
+    } finally {
+      setAssigningVolunteerId("");
+    }
+  };
+
+  const handleResolveAlert = async (alertId) => {
+    setResolvingAlertId(alertId);
+
+    try {
+      await axios.patch(`http://localhost:3000/alert/${alertId}/resolve`, {}, { withCredentials: true });
+      setAlerts((current) => current.filter((alert) => alert._id !== alertId));
+      if (selectedAlert?._id === alertId) {
+        setSelectedAlert(null);
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        navigate("/");
+        return;
+      }
+      setError(err.response?.data?.message || "Failed to resolve alert.");
+    } finally {
+      setResolvingAlertId("");
+    }
+  };
 
   if (loading) return <Spinner />;
   if (error) return <ErrorMsg msg={error} />;
@@ -305,22 +476,63 @@ const AlertsTab = ({ eventId, navigate }) => {
   );
 
   return (
-    <div className="flex flex-col gap-3">
-      {alerts.map((alert) => (
-        <div key={alert._id} className={`flex items-start gap-4 p-4 rounded-2xl border bg-white/5 ${
-          alert.severity === "HIGH" ? "border-red-500/30" : alert.severity === "MEDIUM" ? "border-yellow-500/30" : "border-white/10"
-        }`}>
-          <span className={`mt-0.5 text-xs font-bold px-2.5 py-1 rounded-full border shrink-0 ${severityStyles[alert.severity]?.badge}`}>
-            {alert.severity}
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-medium">{alert.zoneId?.name || "Unknown Zone"} <span className="text-gray-500 font-mono text-xs">({alert.zoneId?.code})</span></p>
-            <p className="text-gray-400 text-sm mt-0.5">{alert.action}</p>
+    <>
+      {selectedAlert && (
+        <VolunteerAssignModal
+          alert={selectedAlert}
+          volunteers={volunteers}
+          loading={volunteersLoading}
+          submitting={Boolean(assigningVolunteerId)}
+          error={assignError}
+          onClose={() => {
+            setSelectedAlert(null);
+            setAssignError("");
+            setVolunteers([]);
+          }}
+          onAssign={handleAssignVolunteer}
+        />
+      )}
+
+      <div className="flex flex-col gap-3">
+        {alerts.map((alert) => (
+          <div key={alert._id} className={`p-4 rounded-2xl border bg-white/5 ${
+            alert.severity === "HIGH" ? "border-red-500/30" : alert.severity === "MEDIUM" ? "border-yellow-500/30" : "border-white/10"
+          }`}>
+            <div className="flex items-start gap-4">
+              <span className={`mt-0.5 text-xs font-bold px-2.5 py-1 rounded-full border shrink-0 ${severityStyles[alert.severity]?.badge}`}>
+                {alert.severity}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm font-medium">{alert.zoneId?.name || "Unknown Zone"} <span className="text-gray-500 font-mono text-xs">({alert.zoneId?.code})</span></p>
+                <p className="text-gray-400 text-sm mt-0.5">{alert.action}</p>
+                <div className="mt-3">
+                  <VolunteerAssignmentBadge volunteerName={alert.assignedVolunteerId?.fullName} />
+                </div>
+              </div>
+              <p className="text-gray-600 text-xs shrink-0">{new Date(alert.createdAt).toLocaleTimeString()}</p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/5">
+              <button
+                type="button"
+                onClick={() => openAssignModal(alert)}
+                className="px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold transition-all duration-200"
+              >
+                {alert.assignedVolunteerId ? "Reassign Volunteer" : "Assign Volunteer"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleResolveAlert(alert._id)}
+                disabled={resolvingAlertId === alert._id}
+                className="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-xs font-semibold transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {resolvingAlertId === alert._id ? "Resolving..." : "Resolve Alert"}
+              </button>
+            </div>
           </div>
-          <p className="text-gray-600 text-xs shrink-0">{new Date(alert.createdAt).toLocaleTimeString()}</p>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </>
   );
 };
 
@@ -363,11 +575,22 @@ const VolunteersTab = ({ eventId, navigate }) => {
               <p className="text-gray-500 text-xs truncate">{v.email}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 border-t border-white/5 pt-3">
-            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            </svg>
-            {v.assignedTo ? `${v.assignedTo.name} (${v.assignedTo.code})` : "Unassigned"}
+          <div className="border-t border-white/5 pt-3">
+            {v.assignedTo ? (
+              <div className="inline-flex items-center gap-2 rounded-lg border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs text-violet-200">
+                <svg className="w-3.5 h-3.5 shrink-0 text-violet-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                </svg>
+                <span className="text-violet-100">Assigned zone:</span>
+                <span className="font-semibold text-white">{v.assignedTo.name}</span>
+                <span className="font-mono text-violet-300">({v.assignedTo.code})</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-gray-400">
+                <span className="h-2 w-2 rounded-full bg-gray-500" />
+                Available for assignment
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -411,6 +634,9 @@ const LogsTab = ({ eventId, navigate }) => {
           <div className="flex-1 min-w-0">
             <p className="text-white text-sm font-medium">{log.zoneId?.name || "Unknown Zone"} <span className="text-gray-500 font-mono text-xs">({log.zoneId?.code})</span></p>
             <p className="text-gray-400 text-sm mt-0.5">{log.action}</p>
+            <div className="mt-3">
+              <VolunteerAssignmentBadge volunteerName={log.assignedVolunteerId?.fullName} />
+            </div>
           </div>
           <div className="text-right shrink-0">
             <p className="text-gray-600 text-xs">Resolved</p>

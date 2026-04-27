@@ -1,6 +1,24 @@
 const alertModel = require('../models/alert.model')
 const zoneModel = require("../models/zone.model")
+const volunteerModel = require('../models/volunteer.model')
 const { getLLMAction } = require('../services/llm.service')
+
+async function syncVolunteerZoneAssignment(volunteerId) {
+    if(!volunteerId){
+        return
+    }
+
+    const activeAssignment = await alertModel
+        .findOne({
+            assignedVolunteerId: volunteerId,
+            isResolved: false
+        })
+        .sort({ createdAt: -1 })
+
+    await volunteerModel.findByIdAndUpdate(volunteerId, {
+        assignedTo: activeAssignment?.zoneId || null
+    })
+}
 
 async function generateAlert(req, res){
     const {eventId, zoneId: zoneCode } = req.body
@@ -60,8 +78,22 @@ async function assignAlert(req, res) {
             })
         }
 
+        const volunteer = await volunteerModel.findById(volunteerId)
+
+        if(!volunteer){
+            return res.status(404).json({
+                message: "Volunteer not found!"
+            })
+        }
+
+        const previousVolunteerId = alert.assignedVolunteerId
         alert.assignedVolunteerId = volunteerId
         await alert.save()
+        await syncVolunteerZoneAssignment(previousVolunteerId)
+        await syncVolunteerZoneAssignment(volunteerId)
+
+        await alert.populate('assignedVolunteerId', 'fullName email')
+        await alert.populate('zoneId', 'name code')
 
         res.status(201).json({
             message: "Alert assigned succesfully",
@@ -93,10 +125,12 @@ async function resolveAlert(req, res){
             })
         }
 
+        const assignedVolunteerId = alert.assignedVolunteerId
         alert.isResolved = true
         alert.resolvedAt = new Date()
 
         await alert.save()
+        await syncVolunteerZoneAssignment(assignedVolunteerId)
 
         res.status(201).json({
             message: "Alert resolved successfully",
@@ -114,13 +148,20 @@ async function resolveAlert(req, res){
 
 async function getActiveAlerts(req, res) {
     const { eventId } = req.params
-    const alerts = await alertModel.find({ eventId, isResolved: false }).populate('zoneId', 'name code')
+    const alerts = await alertModel
+        .find({ eventId, isResolved: false })
+        .populate('zoneId', 'name code')
+        .populate('assignedVolunteerId', 'fullName email')
     res.status(200).json({ message: "Active alerts fetched!", alerts })
 }
 
 async function getLogs(req, res) {
     const { eventId } = req.params
-    const alerts = await alertModel.find({ eventId, isResolved: true }).populate('zoneId', 'name code').sort({ resolvedAt: -1 })
+    const alerts = await alertModel
+        .find({ eventId, isResolved: true })
+        .populate('zoneId', 'name code')
+        .populate('assignedVolunteerId', 'fullName email')
+        .sort({ resolvedAt: -1 })
     res.status(200).json({ message: "Logs fetched!", alerts })
 }
 

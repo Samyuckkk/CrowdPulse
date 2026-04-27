@@ -1,65 +1,78 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import axios from 'axios'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const RegisterPage = () => {
-  const [form, setForm] = useState({ fullName: "", email: "", password: "", eventId: "" });
+  const [form, setForm] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+    eventId: "",
+    role: "",
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    setError("");
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-  const navigate = useNavigate()
-
-  const handleSubmit = async(e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const fullName = e.target.fullName.value
-    const email = e.target.email.value
-    const password = e.target.password.value
+    setError("");
 
-    try {
-      const response = await axios.post('http://localhost:3000/auth/admin/register', {
-        fullName,
-        email,
-        password
-      },{
-        withCredentials: true
-      })
-      console.log(response.data);
-      return navigate("/admin")
-    } catch (err) {
-        console.error(err);
+    if (!form.role) {
+      return setError("Please choose whether you're registering as an admin or volunteer.");
     }
 
-    try {
-      const response = await axios.post('http://localhost:3000/auth/volunteer/register', {
-        fullName,
-        email,
-        password,
-        eventId: form.eventId || undefined
-      },{
-        withCredentials: true
-      })
-      console.log(response.data);
-      return navigate("/volunteer")
-    } catch (err) {
-        console.error(err);
+    if (form.role === "volunteer" && !form.eventId.trim()) {
+      return setError("Event ID is required for volunteer registration.");
     }
 
+    setLoading(true);
+
+    try {
+      const endpoint =
+        form.role === "admin"
+          ? "http://localhost:3000/auth/admin/register"
+          : "http://localhost:3000/auth/volunteer/register";
+
+      await axios.post(
+        endpoint,
+        {
+          fullName: form.fullName,
+          email: form.email,
+          password: form.password,
+          eventId: form.role === "volunteer" ? form.eventId.trim() : undefined,
+        },
+        {
+          withCredentials: true,
+        }
+      );
+
+      navigate(form.role === "admin" ? "/admin" : "/volunteer");
+    } catch (err) {
+      setError(err.response?.data?.message || "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputClass = (field) =>
     `w-full px-4 py-3 rounded-xl border-2 bg-white/5 text-white placeholder-gray-500 outline-none transition-all duration-300 ${
-      focused === field ? "border-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.3)]" : "border-white/10 hover:border-white/25"
+      focused === field
+        ? "border-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.3)]"
+        : "border-white/10 hover:border-white/25"
     }`;
 
   return (
     <div className="min-h-screen bg-[#0f0f13] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        {/* Card */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
-          {/* Header */}
           <div className="mb-8 text-center">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-violet-600/20 border border-violet-500/30 mb-4">
               <svg className="w-7 h-7 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,8 +83,42 @@ const RegisterPage = () => {
             <p className="text-gray-400 text-sm mt-1">Join the crowd management platform</p>
           </div>
 
+          {error && (
+            <div className="mb-5 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Full Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Account Type</label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: "admin", label: "Admin" },
+                  { value: "volunteer", label: "Volunteer" },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      setError("");
+                      setForm({ ...form, role: option.value });
+                    }}
+                    className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all duration-200 ${
+                      form.role === option.value
+                        ? "border-violet-500 bg-violet-500/10 text-white shadow-[0_0_15px_rgba(139,92,246,0.2)]"
+                        : "border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-white/25"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">Full Name</label>
               <input
@@ -87,7 +134,6 @@ const RegisterPage = () => {
               />
             </div>
 
-            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">Email</label>
               <input
@@ -103,7 +149,6 @@ const RegisterPage = () => {
               />
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">Password</label>
               <div className="relative">
@@ -137,10 +182,9 @@ const RegisterPage = () => {
               </div>
             </div>
 
-            {/* Event ID (optional) */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                Event ID <span className="text-gray-600 font-normal">(optional — for volunteers)</span>
+                Event ID <span className="text-gray-600 font-normal">(required for volunteers)</span>
               </label>
               <input
                 type="text"
@@ -149,17 +193,19 @@ const RegisterPage = () => {
                 onChange={handleChange}
                 onFocus={() => setFocused("eventId")}
                 onBlur={() => setFocused("")}
-                placeholder="Paste event ID if registering as volunteer"
+                placeholder="Paste the event ID shown in the admin dashboard"
                 className={inputClass("eventId")}
+                disabled={form.role !== "volunteer"}
+                required={form.role === "volunteer"}
               />
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-500 active:scale-[0.98] text-white font-semibold transition-all duration-200 shadow-lg shadow-violet-900/40 mt-2"
+              disabled={loading}
+              className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-500 active:scale-[0.98] text-white font-semibold transition-all duration-200 shadow-lg shadow-violet-900/40 mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Create Account
+              {loading ? "Creating Account..." : "Create Account"}
             </button>
           </form>
 

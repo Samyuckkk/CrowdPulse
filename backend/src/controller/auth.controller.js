@@ -1,5 +1,7 @@
 const adminModel = require("../models/admin.model")
 const volunteerModel = require('../models/volunteer.model')
+const eventModel = require('../models/event.model')
+const mongoose = require('mongoose')
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -95,6 +97,22 @@ async function registerVolunteer(req, res){
     return res.status(400).json({
       message: "Volunteer already exists"
     })
+  }
+
+  if(eventId){
+    if(!mongoose.Types.ObjectId.isValid(eventId)){
+      return res.status(400).json({
+        message: "Invalid event ID"
+      })
+    }
+
+    const eventExists = await eventModel.exists({_id: eventId})
+
+    if(!eventExists){
+      return res.status(400).json({
+        message: "Invalid event ID"
+      })
+    }
   }
 
   const hashedPassword = await bcrypt.hash(password, Number(process.env.SALT_ROUNDS))
