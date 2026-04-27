@@ -12,6 +12,7 @@ const upload = multer({
 router.post('/create', authMiddleware.authAdminMiddleware, upload.single("map"), eventController.createEvent)
 router.get('/', authMiddleware.authAdminMiddleware, eventController.getEvents)
 router.get('/volunteer/zones', authMiddleware.authVolunteerMiddleware, eventController.getVolunteerZones)
+router.get('/:eventId', authMiddleware.authAdminMiddleware, eventController.getEvent)
 router.get('/:eventId/zones', authMiddleware.authAdminMiddleware, eventController.getZones)
 router.get('/:eventId/volunteers', authMiddleware.authAdminMiddleware, eventController.getVolunteers)
 

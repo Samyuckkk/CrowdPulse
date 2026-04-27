@@ -65,6 +65,41 @@ const Empty = ({ icon, label, sub }) => (
   </div>
 );
 
+const formatDateTime = (value) =>
+  new Date(value).toLocaleString("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+const EventMapModal = ({ event, onClose }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/85 px-4 backdrop-blur-sm">
+    <div className="hero-panel w-full max-w-5xl rounded-[28px] p-5 sm:p-6">
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <p className="section-label mb-3">
+            <span className="status-dot bg-cyan-300" />
+            Event map
+          </p>
+          <h2 className="text-2xl font-black text-white">{event.name}</h2>
+          <p className="mt-2 text-sm text-slate-400">{event.location}</p>
+        </div>
+        <button type="button" onClick={onClose} className="secondary-button flex h-10 w-10 items-center justify-center rounded-full">
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950">
+        <img src={event.mapURL} alt={`${event.name} map`} className="max-h-[75vh] w-full object-contain" />
+      </div>
+    </div>
+  </div>
+);
+
 const VolunteerAssignmentBadge = ({ volunteerName }) => {
   if (!volunteerName) {
     return (
@@ -685,10 +720,25 @@ const EventPage = () => {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("zones");
+  const [event, setEvent] = useState(null);
+  const [eventError, setEventError] = useState("");
+  const [showMapModal, setShowMapModal] = useState(false);
+
+  useEffect(() => {
+    axios
+      .get(`http://localhost:3000/event/${eventId}`, { withCredentials: true })
+      .then((res) => setEvent(res.data.event))
+      .catch((err) => {
+        if (err.response?.status === 401) return navigate("/");
+        setEventError(err.response?.data?.message || "Failed to load event details.");
+      });
+  }, [eventId, navigate]);
 
   return (
     <div className="app-shell px-4 py-8 sm:px-6 lg:px-8">
       <div className="relative z-10 mx-auto max-w-7xl">
+        {showMapModal && event && <EventMapModal event={event} onClose={() => setShowMapModal(false)} />}
+
         <section className="hero-panel rounded-[30px] p-6 sm:p-8 lg:p-10">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
@@ -706,11 +756,40 @@ const EventPage = () => {
               <p className="mt-3 text-sm leading-7 text-slate-300">
                 Monitor zones, manage volunteers, generate alerts, and review the event history from one immersive workspace.
               </p>
+              {eventError && <div className="mt-4"><ErrorMsg msg={eventError} /></div>}
             </div>
 
-            <div className="metric-tile max-w-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Event identifier</p>
-              <p className="mt-3 break-all font-mono text-sm text-cyan-200">{eventId}</p>
+            <div className="grid max-w-xl gap-4 sm:grid-cols-[1fr_220px]">
+              <div className="metric-tile">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Event identifier</p>
+                <p className="mt-3 break-all font-mono text-sm text-cyan-200">{eventId}</p>
+                {event && (
+                  <p className="mt-3 text-xs leading-6 text-slate-400">
+                    {formatDateTime(event.startDate)} to {formatDateTime(event.endDate)}
+                  </p>
+                )}
+              </div>
+
+              {event?.mapURL && (
+                <button
+                  type="button"
+                  onClick={() => setShowMapModal(true)}
+                  className="group overflow-hidden rounded-[22px] border border-cyan-300/15 bg-white/[0.03] text-left transition-transform duration-200 hover:-translate-y-1"
+                >
+                  <div className="relative h-full min-h-[160px]">
+                    <img
+                      src={event.mapURL}
+                      alt={`${event.name} map preview`}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#06101d] via-[#06101d]/25 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200/75">Venue map</p>
+                      <p className="mt-2 text-sm font-semibold text-white">Click to expand</p>
+                    </div>
+                  </div>
+                </button>
+              )}
             </div>
           </div>
 

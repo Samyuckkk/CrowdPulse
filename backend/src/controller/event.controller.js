@@ -47,6 +47,26 @@ async function getEvents(req, res){
     })
 }
 
+async function getEvent(req, res){
+    const { eventId } = req.params
+
+    const event = await eventModel.findOne({
+        _id: eventId,
+        createdBy: req.admin._id
+    })
+
+    if(!event){
+        return res.status(404).json({
+            message: "Event not found!"
+        })
+    }
+
+    res.status(200).json({
+        message: "Event fetched!",
+        event
+    })
+}
+
 async function getZones(req, res){
     const { eventId } = req.params
     const zoneModel = require('../models/zone.model')
@@ -86,6 +106,7 @@ async function getVolunteerZones(req, res){
 
 module.exports = {
     createEvent,
+    getEvent,
     getEvents,
     getZones,
     getVolunteers,
