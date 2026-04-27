@@ -12,5 +12,7 @@ const upload = multer({
 router.post('/generate', authMiddleware.authAdminMiddleware, upload.single("video"), alertController.generateAlert)
 router.patch('/:alertId/assign', authMiddleware.authAdminMiddleware, alertController.assignAlert)
 router.patch('/:alertId/resolve', alertController.resolveAlert)
+router.get('/:eventId/active', authMiddleware.authAdminMiddleware, alertController.getActiveAlerts)
+router.get('/:eventId/logs', authMiddleware.authAdminMiddleware, alertController.getLogs)
 
 module.exports = router

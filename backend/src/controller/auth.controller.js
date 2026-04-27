@@ -87,7 +87,7 @@ async function logoutAdmin(req, res) {
 }
 
 async function registerVolunteer(req, res){
-  const {fullName, email, password} = req.body
+  const {fullName, email, password, eventId} = req.body
 
   const isAlreadyExist = await volunteerModel.exists({email})
 
@@ -102,7 +102,8 @@ async function registerVolunteer(req, res){
   const volunteer = await volunteerModel.create({
     fullName,
     email,
-    password: hashedPassword
+    password: hashedPassword,
+    eventId: eventId || null
   })
 
   const token = jwt.sign(

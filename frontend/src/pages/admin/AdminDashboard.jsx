@@ -5,7 +5,7 @@ import axios from "axios";
 const formatDate = (d) =>
   new Date(d).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
 
-const EventCard = ({ event }) => {
+const EventCard = ({ event, navigate }) => {
   const now = new Date();
   const start = new Date(event.startDate);
   const end = new Date(event.endDate);
@@ -22,7 +22,7 @@ const EventCard = ({ event }) => {
   const statusLabel = { live: "Live", upcoming: "Upcoming", ended: "Ended" };
 
   return (
-    <div className="group bg-white/5 hover:bg-white/8 border border-white/10 hover:border-violet-500/30 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_25px_rgba(139,92,246,0.1)] cursor-pointer">
+    <div onClick={() => navigate(`/admin/event/${event._id}`)} className="group bg-white/5 hover:bg-white/8 border border-white/10 hover:border-violet-500/30 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_25px_rgba(139,92,246,0.1)] cursor-pointer">
       {/* Map Image */}
       <div className="relative h-40 bg-white/5 overflow-hidden">
         <img
@@ -137,7 +137,7 @@ const AdminDashboard = () => {
         {!loading && !error && events.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {events.map((event) => (
-              <EventCard key={event._id} event={event} />
+              <EventCard key={event._id} event={event} navigate={navigate} />
             ))}
           </div>
         )}

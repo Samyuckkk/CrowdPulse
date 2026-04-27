@@ -112,8 +112,22 @@ async function resolveAlert(req, res){
     }
 }
 
+async function getActiveAlerts(req, res) {
+    const { eventId } = req.params
+    const alerts = await alertModel.find({ eventId, isResolved: false }).populate('zoneId', 'name code')
+    res.status(200).json({ message: "Active alerts fetched!", alerts })
+}
+
+async function getLogs(req, res) {
+    const { eventId } = req.params
+    const alerts = await alertModel.find({ eventId, isResolved: true }).populate('zoneId', 'name code').sort({ resolvedAt: -1 })
+    res.status(200).json({ message: "Logs fetched!", alerts })
+}
+
 module.exports = {
     generateAlert,
     assignAlert,
-    resolveAlert
+    resolveAlert,
+    getActiveAlerts,
+    getLogs
 }

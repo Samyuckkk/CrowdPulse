@@ -4,7 +4,7 @@ import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 
 const RegisterPage = () => {
-  const [form, setForm] = useState({ fullName: "", email: "", password: "" });
+  const [form, setForm] = useState({ fullName: "", email: "", password: "", eventId: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState("");
 
@@ -36,7 +36,8 @@ const RegisterPage = () => {
       const response = await axios.post('http://localhost:3000/auth/volunteer/register', {
         fullName,
         email,
-        password
+        password,
+        eventId: form.eventId || undefined
       },{
         withCredentials: true
       })
@@ -134,6 +135,23 @@ const RegisterPage = () => {
                   )}
                 </button>
               </div>
+            </div>
+
+            {/* Event ID (optional) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                Event ID <span className="text-gray-600 font-normal">(optional — for volunteers)</span>
+              </label>
+              <input
+                type="text"
+                name="eventId"
+                value={form.eventId}
+                onChange={handleChange}
+                onFocus={() => setFocused("eventId")}
+                onBlur={() => setFocused("")}
+                placeholder="Paste event ID if registering as volunteer"
+                className={inputClass("eventId")}
+              />
             </div>
 
             {/* Submit */}
