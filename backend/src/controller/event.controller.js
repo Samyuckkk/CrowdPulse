@@ -3,7 +3,6 @@ const storageService = require('../services/storage.services')
 const { v4: uuid } = require('uuid')
 
 async function createEvent(req, res){
-    console.log("Controller hit")
     const {name, location, startDate, endDate} = req.body
 
     if(!req.file){
@@ -35,6 +34,20 @@ async function createEvent(req, res){
     })
 }
 
+async function getEvents(req, res){
+    const adminId = req.admin._id
+
+    const events = await eventModel.find({
+        createdBy: adminId
+    })
+
+    res.status(200).json({
+        message: "Events fetched!",
+        events
+    })
+}
+
 module.exports = {
-    createEvent
+    createEvent,
+    getEvents
 }

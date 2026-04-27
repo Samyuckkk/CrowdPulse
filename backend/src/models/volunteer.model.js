@@ -7,7 +7,8 @@ const volunteerSchema = new mongoose.Schema({
     },
     email: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
     password: {
         type: String,
@@ -21,8 +22,11 @@ const volunteerSchema = new mongoose.Schema({
     eventId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "event",
-        required: true
+        default: null
     }
+},
+{
+    timestamps: true
 })
 
 const volunteerModel = mongoose.model('volunteer', volunteerSchema)

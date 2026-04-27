@@ -1,0 +1,119 @@
+const alertModel = require('../models/alert.model')
+const zoneModel = require("../models/zone.model")
+const { getLLMAction } = require('../services/llm.service')
+
+async function generateAlert(req, res){
+    const {eventId, zoneId: zoneCode } = req.body
+
+    if(!req.file){
+        return res.status(400).json({
+            message: "Video feed is required!"
+        })
+    }
+
+    const zone = await zoneModel.findOne({
+        code: zoneCode,
+        eventId
+    });
+
+    if (!zone) {
+        return res.status(404).json({
+            message: "Zone not found"
+        });
+    }
+
+    let riskLevel = "SAFE"
+    const random = Math.random()
+
+    if(random > 0.7) riskLevel = "HIGH"
+    else if(random > 0.4) riskLevel = "MEDIUM"
+
+    let suggestedAction = "Monitor situation"
+
+    if(riskLevel === "HIGH" || riskLevel === "MEDIUM"){
+        suggestedAction = await getLLMAction(zoneCode, riskLevel, eventId)
+    }
+
+    const newAlert = await alertModel.create({
+        eventId,
+        zoneId: zone._id,
+        severity: riskLevel,
+        action: suggestedAction
+    })
+
+    res.status(201).json({
+        message: "Alert successfully created!",
+        alert: newAlert
+    })
+}
+
+async function assignAlert(req, res) {
+    try {
+        const { alertId } = req.params
+        const { volunteerId } = req.body
+
+        const alert = await alertModel.findById(alertId)
+
+        if(!alert){
+            return res.status(404).json({
+                message: "Alert not found!"
+            })
+        }
+
+        alert.assignedVolunteerId = volunteerId
+        await alert.save()
+
+        res.status(201).json({
+            message: "Alert assigned succesfully",
+            alert
+        })
+
+    } catch (err) {
+        res.status(500).json({
+            error: err.message
+        })
+    }
+}
+
+async function resolveAlert(req, res){
+    try {
+        const {alertId} = req.params
+        
+        const alert = await alertModel.findById(alertId)
+
+        if(!alert){
+            return res.status(404).json({
+                message: "Alert not found!"
+            })
+        }
+
+        if(alert.isResolved){
+            return res.status(400).json({
+                message: "Alert already resolved"
+            })
+        }
+
+        alert.isResolved = true
+        alert.resolvedAt = new Date()
+
+        await alert.save()
+
+        res.status(201).json({
+            message: "Alert resolved successfully",
+            alert
+        })
+
+    } catch (err) {
+        res.status(500).json({
+            message: {
+                error: err.message
+            }
+        })
+    }
+}
+
+module.exports = {
+    generateAlert,
+    assignAlert,
+    resolveAlert
+}

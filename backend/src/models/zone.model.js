@@ -1,6 +1,15 @@
 const mongoose = require('mongoose')
 
 const zoneSchema = new mongoose.Schema({
+    eventId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "event",
+        required: true
+    },
+    code: {
+        type: String,
+        required: true
+    },
     name: {
         type: String,
         required: true

@@ -10,5 +10,6 @@ const upload = multer({
 })
 
 router.post('/create', authMiddleware.authAdminMiddleware, upload.single("map"), eventController.createEvent)
+router.get('/', authMiddleware.authAdminMiddleware, eventController.getEvents)
 
 module.exports = router

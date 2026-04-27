@@ -22,8 +22,8 @@ const alertSchema = new mongoose.Schema({
     },
     severity: {
         type: String,
-        enum: ["LOW", "MEDIUM", "HIGH"],
-        default: null
+        enum: ["SAFE", "MEDIUM", "HIGH"],
+        default: "SAFE"
     },
     isResolved: {
         type: Boolean,
@@ -31,7 +31,7 @@ const alertSchema = new mongoose.Schema({
     },
     resolvedAt: {
         type: Date,
-        dafult: null
+        default: null
     }
 }, {
     timestamps: true

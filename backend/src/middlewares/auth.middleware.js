@@ -3,8 +3,6 @@ const jwt = require('jsonwebtoken')
 
 async function authAdminMiddleware(req, res, next){
 
-    console.log("Middleware hit")
-
     const token = req.cookies.token
 
     if(!token){
